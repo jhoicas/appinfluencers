@@ -5,6 +5,7 @@ const nextConfig = {
   images: {
     domains: [
       'localhost',
+      'walrus-app-3pk92.ondigitalocean.app',
       'influencers-api.onrender.com',
       'scontent.cdninstagram.com',
       'scontent-lga3-1.cdninstagram.com',
