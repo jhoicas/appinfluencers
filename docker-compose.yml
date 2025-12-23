@@ -1,0 +1,119 @@
+services:
+  # PostgreSQL Database (default)
+  db:
+    image: postgres:16-alpine
+    container_name: influencers_db
+    environment:
+      POSTGRES_USER: influencers_user
+      POSTGRES_PASSWORD: influencers_password
+      POSTGRES_DB: dfkj68lnvi5nki
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U influencers_user -d dfkj68lnvi5nki"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - influencers_network
+  
+  # MySQL Database (optional - uncomment to use instead of PostgreSQL)
+  # db:
+  #   image: mysql:8.0
+  #   container_name: influencers_db
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root_password
+  #     MYSQL_DATABASE: db_appinfluencers
+  #     MYSQL_USER: influencers_user
+  #     MYSQL_PASSWORD: influencers_password
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - influencers_network
+
+  api:
+    build:
+      context: ./app
+      dockerfile: ../Dockerfile
+    container_name: influencers_api
+    environment:
+      # Database - PostgreSQL (default)
+      DATABASE_URL: postgresql://influencers_user:influencers_password@db:5432/dfkj68lnvi5nki
+      
+      # If switching to MySQL, use:
+      # DATABASE_URL: mysql://influencers_user:influencers_password@db:3306/dfkj68lnvi5nki
+      
+      # Security
+      SECRET_KEY: your-secret-key-change-in-production
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 480
+      
+      # Trial Configuration
+      TRIAL_DURATION_HOURS: 24
+      
+      # Payment Processing (To be implemented with your payment provider of choice)
+      PLATFORM_COMMISSION_RATE: 0.15
+      
+      # Email Configuration (optional for MVP)
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: your-email@gmail.com
+      SMTP_PASSWORD: your-app-password
+      
+      # Social Media APIs Configuration
+      FACEBOOK_APP_ID: "1531422201378331"
+      FACEBOOK_APP_SECRET: "67e9b81b1ae62703dd9f45417ff4d548"
+      INSTAGRAM_ACCESS_TOKEN: "EAAVw0gRQdhsBPymRkFu3cKL6S3Luqk8MuN3QgaoesVOqyzaZCyIb7KRcIAwQNwRxLQApXdZBFZC9NoXuIj2UGgQXTYrUiS5Q4gl596pemoUuw1C6ZCZB2ZCvjEWUsCSh03tgDqmRAvhZAqOk2Rvt0ueeJNlGvw7uZCCZAyHR6afYsv9PSdhDlJPSC3ZC37iqQdvuag3ZASkdZCW1PjZAfAZAj501FbqqQgWjTXGBs26QaquDdddeGXmGN91ytGIelCvOalXG33ClZBRbypulDxbOCYQfxlZCfeUp"
+      TIKTOK_CLIENT_KEY: ""
+      TIKTOK_CLIENT_SECRET: ""
+      
+      # Application
+      ENVIRONMENT: development
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./app:/app
+    networks:
+      - influencers_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_FACEBOOK_APP_ID: "1531422201378331"
+    container_name: influencers_frontend
+    environment:
+      # Backend interno (comunicación entre contenedores Docker - solo para rewrites server-side)
+      BACKEND_INTERNAL_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - influencers_network
+    command: npm start
+
+networks:
+  influencers_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  # mysql_data:
+  #   driver: local

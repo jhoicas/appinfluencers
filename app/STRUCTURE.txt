@@ -1,0 +1,385 @@
+Influencers Platform - Estructura del Proyecto
+==============================================
+
+Influencers/
+│
+├── 📄 Archivos de Configuración Raíz
+│   ├── .env.example              # Template de variables de entorno
+│   ├── .gitignore                # Archivos ignorados por Git
+│   ├── alembic.ini               # Configuración de Alembic (migraciones)
+│   ├── docker-compose.yml        # Orquestación de servicios Docker
+│   ├── Dockerfile                # Imagen Docker multi-stage
+│   ├── Makefile                  # Comandos útiles de desarrollo
+│   ├── pytest.ini                # Configuración de pytest
+│   └── requirements.txt          # Dependencias de Python
+│
+├── 📚 Documentación
+│   ├── README.md                 # Documentación principal completa
+│   ├── QUICKSTART.md             # Guía de inicio rápido (5 min)
+│   ├── DEPLOYMENT.md             # Guía de despliegue a producción
+│   ├── PROJECT_SUMMARY.md        # Resumen ejecutivo del proyecto
+│   ├── COMMANDS.md               # Cheat sheet de comandos útiles
+│   └── STRUCTURE.txt             # Este archivo
+│
+├── 🗄️ alembic/                  # Migraciones de Base de Datos
+│   ├── README                    # Info de Alembic
+│   ├── env.py                    # Configuración async de migraciones
+│   ├── script.py.mako            # Template para nuevas migraciones
+│   └── versions/                 # Carpeta de migraciones (generadas)
+│
+├── 🐍 app/                       # Código Principal de la Aplicación
+│   │
+│   ├── __init__.py
+│   ├── main.py                   # ⭐ Punto de entrada FastAPI
+│   │
+│   ├── 🔧 core/                  # Configuración Central
+│   │   ├── __init__.py
+│   │   ├── config.py             # Settings con Pydantic
+│   │   ├── database.py           # SQLAlchemy async + sessions
+│   │   └── security.py           # JWT + password hashing
+│   │
+│   ├── 🗃️ models/                # Modelos de SQLAlchemy
+│   │   ├── __init__.py
+│   │   ├── user.py               # Usuario (EMPRESA, INFLUENCER, ADMIN)
+│   │   ├── profile.py            # Perfil de influencer
+│   │   ├── campaign.py           # Campañas de marketing
+│   │   ├── payment.py            # Pagos y comisiones
+│   │   ├── notification.py       # Sistema de notificaciones
+│   │   ├── message.py            # Mensajería interna
+│   │   └── subscription.py       # Suscripciones de empresas
+│   │
+│   ├── 📋 schemas/               # Schemas de Pydantic (Validación)
+│   │   ├── __init__.py
+│   │   ├── user_schemas.py       # Validación de usuarios
+│   │   ├── profile_schemas.py    # Validación de perfiles
+│   │   ├── campaign_schemas.py   # Validación de campañas
+│   │   ├── payment_schemas.py    # Validación de pagos
+│   │   ├── notification_schemas.py
+│   │   └── message_schemas.py
+│   │
+│   ├── 🗂️ repositories/          # Patrón Repository (Acceso a Datos)
+│   │   ├── __init__.py
+│   │   ├── user_repository.py    # CRUD de usuarios
+│   │   ├── profile_repository.py # CRUD de perfiles
+│   │   ├── campaign_repository.py
+│   │   ├── payment_repository.py
+│   │   ├── notification_repository.py
+│   │   └── message_repository.py
+│   │
+│   ├── 💼 services/              # Lógica de Negocio
+│   │   ├── __init__.py
+│   │   ├── auth_service.py       # Autenticación y registro
+│   │   ├── trial_service.py      # ⭐⭐⭐ LÓGICA CRÍTICA DEL TRIAL
+│   │   ├── campaign_service.py   # Gestión de campañas
+│   │   ├── payment_service.py    # Procesamiento de pagos
+│   │   └── notification_service.py
+│   │
+│   └── 🌐 api/                   # Routers de FastAPI (Endpoints)
+│       ├── __init__.py
+│       ├── dependencies.py       # ⭐ Auth + Middleware de Trial
+│       ├── auth.py               # POST /auth/register, /auth/login
+│       ├── users.py              # GET /users/me, /users/trial-status
+│       ├── profiles.py           # ⭐ GET /profiles/{id} (con trial)
+│       ├── campaigns.py          # POST /campaigns, /campaigns/{id}/accept
+│       ├── payments.py           # POST /payments
+│       └── notifications.py      # GET /notifications
+│
+├── 🧪 tests/                     # Suite de Pruebas
+│   ├── __init__.py
+│   ├── conftest.py               # Fixtures y configuración async
+│   │
+│   ├── unit/                     # Pruebas Unitarias
+│   │   ├── __init__.py
+│   │   └── test_trial_logic.py   # ⭐⭐⭐ 12 PRUEBAS CRÍTICAS DEL TRIAL
+│   │
+│   └── integration/              # Pruebas de Integración
+│       ├── __init__.py
+│       └── test_auth_api.py      # 10 pruebas de endpoints de auth
+│
+└── 🔧 scripts/                   # Scripts de Utilidad
+    ├── init_db.py                # Inicializar DB con admin user
+    ├── run_tests.sh              # Script de tests (Linux/Mac)
+    └── run_tests.ps1             # Script de tests (Windows)
+
+
+ARQUITECTURA EN CAPAS
+=====================
+
+┌─────────────────────────────────────┐
+│   API Layer (FastAPI Routers)      │  ← HTTP Endpoints
+│   app/api/*.py                      │
+├─────────────────────────────────────┤
+│   Service Layer (Business Logic)   │  ← Lógica de Negocio
+│   app/services/*.py                 │
+├─────────────────────────────────────┤
+│   Repository Layer (Data Access)   │  ← Acceso a Datos
+│   app/repositories/*.py             │
+├─────────────────────────────────────┤
+│   Model Layer (SQLAlchemy ORM)     │  ← Modelos de DB
+│   app/models/*.py                   │
+└─────────────────────────────────────┘
+
+
+FLUJO DE UNA REQUEST
+====================
+
+1. Cliente → HTTP Request → FastAPI Router (app/api/*.py)
+                                    ↓
+2. Dependency Injection → get_current_user, check_trial_access
+                                    ↓
+3. Service Layer → Lógica de Negocio (app/services/*.py)
+                                    ↓
+4. Repository Layer → Queries a DB (app/repositories/*.py)
+                                    ↓
+5. Model Layer → SQLAlchemy ORM (app/models/*.py)
+                                    ↓
+6. PostgreSQL Database
+                                    ↓
+7. Response ← Pydantic Schema (app/schemas/*.py)
+                                    ↓
+8. Cliente ← HTTP Response (JSON)
+
+
+ENDPOINTS PRINCIPALES
+=====================
+
+Autenticación:
+  POST   /auth/register          # Registro de usuario
+  POST   /auth/login             # Login (retorna JWT)
+
+Usuarios:
+  GET    /users/me               # Info del usuario actual
+  GET    /users/trial-status     # Estado del trial (EMPRESA)
+  PATCH  /users/{id}/approve     # Aprobar usuario (ADMIN)
+
+Perfiles:
+  POST   /profiles/              # Crear perfil (INFLUENCER)
+  GET    /profiles/              # Listar perfiles
+  GET    /profiles/{id}          # ⭐ Ver perfil (CON LÓGICA DE TRIAL)
+  PUT    /profiles/me            # Actualizar mi perfil
+
+Campañas:
+  POST   /campaigns/             # Crear propuesta (EMPRESA)
+  GET    /campaigns/             # Mis campañas
+  GET    /campaigns/{id}         # Ver campaña
+  POST   /campaigns/{id}/accept  # Aceptar (INFLUENCER)
+  POST   /campaigns/{id}/reject  # Rechazar (INFLUENCER)
+  POST   /campaigns/{id}/negotiate # Negociar (INFLUENCER)
+  POST   /campaigns/{id}/complete  # Completar (EMPRESA/ADMIN)
+
+Pagos:
+  POST   /payments/              # Crear pago (EMPRESA)
+  GET    /payments/              # Mis pagos
+  POST   /payments/{id}/complete # Liberar pago (ADMIN)
+
+Notificaciones:
+  GET    /notifications/         # Mis notificaciones
+  PATCH  /notifications/{id}/read # Marcar como leída
+
+
+MODELOS DE BASE DE DATOS
+=========================
+
+users
+├── id (PK)
+├── email (unique)
+├── hashed_password
+├── full_name
+├── role (EMPRESA | INFLUENCER | ADMIN)
+├── is_active
+├── is_approved
+├── trial_start_time ⭐
+├── trial_profile_viewed_id ⭐
+├── has_active_subscription ⭐
+├── created_at
+└── updated_at
+
+influencer_profiles
+├── id (PK)
+├── user_id (FK → users)
+├── bio
+├── instagram_handle
+├── instagram_followers
+├── tiktok_handle
+├── youtube_handle
+├── suggested_rate_per_post
+├── average_engagement_rate
+├── total_campaigns_completed
+└── average_rating
+
+campaigns
+├── id (PK)
+├── empresa_id (FK → users)
+├── influencer_id (FK → users)
+├── title
+├── description
+├── proposed_budget
+├── final_budget
+├── status (PENDIENTE | ACTIVA | FINALIZADA | etc.)
+├── created_at
+└── updated_at
+
+payments
+├── id (PK)
+├── campaign_id (FK → campaigns)
+├── empresa_id (FK → users)
+├── influencer_id (FK → users)
+├── amount
+├── platform_commission ⭐
+├── influencer_payout ⭐
+├── stripe_payment_intent_id
+├── status (PENDIENTE | RETENIDO | COMPLETADO)
+└── created_at
+
+notifications
+├── id (PK)
+├── user_id (FK → users)
+├── title
+├── message
+├── notification_type
+├── is_read
+└── created_at
+
+messages
+├── id (PK)
+├── campaign_id (FK → campaigns)
+├── sender_id (FK → users)
+├── receiver_id (FK → users)
+├── content
+└── created_at
+
+subscriptions
+├── id (PK)
+├── user_id (FK → users)
+├── plan_name
+├── monthly_fee
+├── stripe_subscription_id
+├── status (ACTIVA | CANCELADA | EXPIRADA)
+├── current_period_start
+└── current_period_end
+
+
+LÓGICA DE NEGOCIO CRÍTICA
+==========================
+
+⭐⭐⭐ TRIAL DE 24 HORAS (MVP Feature)
+────────────────────────────────────
+Ubicación: app/services/trial_service.py
+           app/api/dependencies.py (middleware check_trial_access)
+
+Reglas:
+1. EMPRESA se registra → trial_start_time = NOW
+2. Durante 24 horas puede ver 1 perfil completo
+3. Primer perfil → PERMITIDO + guardar en trial_profile_viewed_id
+4. Segundo perfil diferente → BLOQUEADO (HTTP 403)
+5. Mismo perfil → PERMITIDO (puede ver múltiples veces)
+6. Después de 24 horas → BLOQUEADO (HTTP 402)
+7. Con suscripción → ACCESO ILIMITADO
+
+Endpoint Afectado:
+  GET /profiles/{id} ← Aplica middleware check_trial_access
+
+Pruebas:
+  tests/unit/test_trial_logic.py (12 pruebas)
+
+
+STACK TECNOLÓGICO
+=================
+
+Backend Framework:    FastAPI 0.104.1
+Base de Datos:        PostgreSQL 15
+ORM:                  SQLAlchemy 2.0 (async)
+Validación:           Pydantic 2.5
+Autenticación:        JWT (python-jose)
+Password Hashing:     Passlib + bcrypt
+Migraciones:          Alembic
+Testing:              pytest + pytest-asyncio + httpx
+Pagos:                Stripe (mock en MVP)
+Servidor ASGI:        Uvicorn + Gunicorn
+Containerización:     Docker + Docker Compose
+
+
+COMANDOS RÁPIDOS
+================
+
+# Levantar proyecto
+docker-compose up --build
+
+# Ejecutar migraciones
+docker-compose exec api alembic upgrade head
+
+# Inicializar DB
+docker-compose exec api python scripts/init_db.py
+
+# Ejecutar tests
+docker-compose exec api pytest
+
+# Ver documentación
+http://localhost:8000/docs
+
+# Ver logs
+docker-compose logs -f api
+
+
+ARCHIVOS CLAVE
+==============
+
+⭐⭐⭐ MÁS IMPORTANTES:
+  app/services/trial_service.py       # Lógica del trial
+  app/api/dependencies.py             # Middleware de trial
+  tests/unit/test_trial_logic.py      # Pruebas del trial
+  app/main.py                         # Entry point
+  docker-compose.yml                  # Orquestación
+
+⭐⭐ IMPORTANTES:
+  app/models/user.py                  # Modelo de usuario
+  app/services/campaign_service.py    # Lógica de campañas
+  app/services/payment_service.py     # Lógica de pagos
+  app/api/profiles.py                 # Endpoints de perfiles
+
+⭐ ÚTILES:
+  README.md                           # Documentación completa
+  QUICKSTART.md                       # Inicio rápido
+  DEPLOYMENT.md                       # Guía de despliegue
+
+
+PRÓXIMOS PASOS
+==============
+
+1. Levantar el proyecto:
+   docker-compose up --build
+
+2. Ejecutar migraciones:
+   docker-compose exec api alembic upgrade head
+
+3. Inicializar datos:
+   docker-compose exec api python scripts/init_db.py
+
+4. Abrir documentación:
+   http://localhost:8000/docs
+
+5. Ejecutar pruebas:
+   docker-compose exec api pytest -v
+
+6. Leer README.md para más detalles
+
+
+CREDENCIALES POR DEFECTO
+=========================
+
+Admin:
+  Email: admin@influencers.com
+  Password: admin123
+  ⚠️ CAMBIAR EN PRODUCCIÓN
+
+
+ESTADO DEL PROYECTO
+===================
+
+✅ MVP COMPLETADO AL 100%
+✅ Toda la lógica de negocio implementada
+✅ Pruebas unitarias e integración
+✅ Documentación completa
+✅ Dockerizado y listo para producción
+
+¡Listo para desarrollar! 🚀

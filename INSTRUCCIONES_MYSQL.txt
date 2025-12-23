@@ -1,0 +1,169 @@
+# ====================================
+# MIGRACIÓN A MYSQL - PASOS PARA EJECUTAR
+# ====================================
+
+## 📝 CONEXIÓN LOCAL A MYSQL
+
+### Cadena de conexión para tu aplicación .NET:
+```
+Server=127.0.0.1;Port=3306;Database=db_appinfluencers;User=root;Password=1234;AllowPublicKeyRetrieval=true;SslMode=none;Pooling=true;MinimumPoolSize=0;MaximumPoolSize=100;ConnectionLifeTime=0;ConnectionTimeout=30;CharSet=utf8mb4;
+```
+
+### Para Python/FastAPI (.env):
+```
+DATABASE_URL=mysql://root:1234@127.0.0.1:3306/db_appinfluencers
+```
+
+## 🚀 PASOS DE EJECUCIÓN
+
+### 1. Detener contenedores anteriores (si existen)
+```powershell
+docker-compose down -v
+```
+
+### 2. Iniciar MySQL con Docker
+```powershell
+docker-compose up -d db
+```
+
+### 3. Esperar que MySQL esté listo
+```powershell
+# Ver logs hasta que diga "ready for connections"
+docker-compose logs -f db
+```
+
+### 4. Ejecutar migraciones de Alembic (crea las tablas)
+```powershell
+docker-compose up -d api
+docker-compose exec api alembic upgrade head
+```
+
+### 5. Insertar datos de prueba
+```powershell
+# Opción A: Desde Windows con MySQL instalado localmente
+mysql -h 127.0.0.1 -P 3306 -u root -p1234 db_appinfluencers < init_mysql_data.sql
+
+# Opción B: Desde el contenedor Docker
+docker exec -i influencers_db mysql -u root -p1234 db_appinfluencers < init_mysql_data.sql
+
+# Opción C: Copiar al contenedor y ejecutar
+docker cp init_mysql_data.sql influencers_db:/tmp/
+docker exec -it influencers_db mysql -u root -p1234 db_appinfluencers -e "source /tmp/init_mysql_data.sql"
+```
+
+## 🔍 VERIFICAR INSTALACIÓN
+
+### Conectarse a MySQL
+```powershell
+# Desde contenedor Docker
+docker exec -it influencers_db mysql -u root -p1234 db_appinfluencers
+
+# Desde MySQL local (si lo tienes instalado)
+mysql -h 127.0.0.1 -P 3306 -u root -p1234 db_appinfluencers
+```
+
+### Verificar datos insertados
+```sql
+-- Ver encoding de la base de datos
+SHOW CREATE DATABASE db_appinfluencers;
+
+-- Ver tablas creadas
+SHOW TABLES;
+
+-- Verificar usuarios
+SELECT id, email, full_name, role FROM users;
+
+-- Verificar perfiles con tildes y caracteres especiales
+SELECT user_id, SUBSTRING(bio, 1, 50) as bio_preview 
+FROM influencer_profiles;
+
+-- Verificar campañas
+SELECT id, title, status FROM campaigns;
+```
+
+## 👥 USUARIOS DE PRUEBA
+
+Todos usan la contraseña: **admin123**
+
+### Administradores:
+- admin@influencers.com
+- soporte@influencers.com
+
+### Empresas:
+- empresa@test.com (en trial activo)
+- marketing@ejemplo.com (en trial activo)
+- startup@innovacion.com (trial expirado)
+- comercio@ecommerce.com (con suscripción activa)
+
+### Influencers:
+- gaby@gmail.com (Gabriela Martínez - Moda)
+- carlos@influencer.com (Carlos Rodríguez - Tech)
+- maria@beauty.com (María José López - Belleza)
+- andres@tech.com (Andrés Pérez - Fitness)
+- sofia@lifestyle.com (Sofía González - Viajes)
+
+## 🧪 PROBAR LA API
+
+### 1. Verificar health check
+```powershell
+curl http://localhost:8000/health
+```
+
+### 2. Login con usuario de prueba
+```powershell
+curl -X POST "http://localhost:8000/auth/login" `
+  -H "Content-Type: application/json" `
+  -d '{"email":"gaby@gmail.com","password":"admin123"}'
+```
+
+### 3. Ver perfiles (con el token obtenido)
+```powershell
+$token = "tu_token_aqui"
+curl -H "Authorization: Bearer $token" http://localhost:8000/profiles/
+```
+
+## 📊 CARACTERÍSTICAS UTF-8
+
+La base de datos está configurada con:
+- **Charset**: utf8mb4 (soporte completo Unicode)
+- **Collation**: utf8mb4_unicode_ci (ordenamiento correcto en español)
+- ✅ Soporta tildes: á, é, í, ó, ú
+- ✅ Soporta ñ
+- ✅ Soporta emojis: 😀, 🚀, ❤️
+- ✅ Soporta caracteres especiales: ¿, ¡, €
+
+## ⚠️ NOTAS IMPORTANTES
+
+1. **Pool de conexiones**: Configurado para 100 conexiones máximas
+2. **Timeout**: 30 segundos
+3. **Reciclado**: Conexiones se reciclan cada hora (evita timeouts)
+4. **Charset**: Siempre usar utf8mb4 para compatibilidad completa
+
+## 🔧 TROUBLESHOOTING
+
+### Error: "Access denied"
+```powershell
+# Verificar que el usuario root tenga permisos
+docker exec -it influencers_db mysql -u root -p1234 -e "GRANT ALL PRIVILEGES ON db_appinfluencers.* TO 'root'@'%';"
+```
+
+### Error: "Unknown database"
+```powershell
+# Crear la base de datos manualmente
+docker exec -it influencers_db mysql -u root -p1234 -e "CREATE DATABASE db_appinfluencers CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+### Error: "Table doesn't exist"
+```powershell
+# Asegurar que las migraciones se ejecutaron
+docker-compose exec api alembic upgrade head
+```
+
+## 📱 CONECTAR DESDE MYSQL WORKBENCH
+
+- **Hostname**: 127.0.0.1
+- **Port**: 3306
+- **Username**: root
+- **Password**: 1234
+- **Schema**: db_appinfluencers
+- **Advanced > Character Set**: utf8mb4
