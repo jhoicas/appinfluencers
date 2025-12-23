@@ -14,12 +14,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements e instalar dependencias
-COPY requirements.txt .
+COPY app/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copiar código de la aplicación
-COPY . .
+# Copiar código de la aplicación (desde app/)
+COPY app/ .
 
 # Exponer puerto
 EXPOSE 8000
